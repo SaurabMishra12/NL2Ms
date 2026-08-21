@@ -1,0 +1,44 @@
+# Runtime dependencies for the nl2ms measurement instrument.
+#
+# Kaggle GPU images already ship torch, transformers, numpy, scipy, pandas,
+# scikit-learn and matplotlib. The notebook's first cell installs only what is
+# genuinely missing, so a flaky network cannot break an already-usable session.
+#
+#   pip install -r requirements.txt
+#
+# For a CPU-only development install, add the PyTorch CPU index:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# --- required -------------------------------------------------------------
+torch>=2.0
+transformers>=4.40          # tested against 4.x and 5.x; the torch_dtype ->
+                            # dtype rename between them is handled explicitly
+numpy>=1.24
+scipy>=1.10
+pandas>=2.0
+scikit-learn>=1.3
+matplotlib>=3.7
+
+# --- strongly recommended -------------------------------------------------
+pyarrow>=12.0               # parquet master tables; falls back to CSV without it
+datasets>=2.14              # GSM8K / TruthfulQA / Winogrande loaders.
+                            # Without it only the synthetic benchmark runs,
+                            # and the provenance record says so.
+accelerate>=0.27            # device_map="auto" sharding across 2x T4
+bitsandbytes>=0.43          # 4-bit NF4 weights (~4 GB instead of ~14 GB for 7B).
+                            # Without it the model loads unquantized and is
+                            # sharded across GPUs instead.
+safetensors>=0.4
+
+# --- optional -------------------------------------------------------------
+tqdm>=4.65
+h5py>=3.8                   # not required; sharded .npz is the default format
+
+# --- notebook -------------------------------------------------------------
+nbformat>=5.9               # only needed to regenerate the notebook via
+                            # build_notebook.py
+
+# Deliberately not required:
+#   seaborn  -- matplotlib alone covers every figure in the suite
+#   zarr     -- sharded .npz with checksummed sidecars serves the same purpose
+#               with one fewer dependency

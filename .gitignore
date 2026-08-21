@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Experiment outputs are data, not source. They are reproducible from the
+# config + seeds recorded in experiment_manifest.json.
+experiment/
+experiment_*/
+*.tar.gz
+*.parquet
+*.npz

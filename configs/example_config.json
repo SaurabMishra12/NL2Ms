@@ -1,0 +1,126 @@
+{
+  "_comment": [
+    "Example configuration for a full Kaggle run on 2x T4.",
+    "Load with: ExperimentConfig.load('configs/example_config.json')",
+    "",
+    "This is the pilot-scale mixture (150 per source, 600 total). See",
+    "configs/README.md for the scaled variants and what to change."
+  ],
+
+  "experiment_name": "phase_transitions_v1",
+  "output_root": "/kaggle/working/experiment",
+  "seed": 20260820,
+  "storage_level": 3,
+  "discovery_mode": true,
+  "pilot_n_samples": 16,
+  "run_pilot_first": true,
+  "run_resume_test": true,
+  "prompt_template_id": "plain_qa_v1",
+  "notes": "primary deterministic run",
+
+  "model": {
+    "name": "Qwen/Qwen2.5-7B-Instruct",
+    "revision": "main",
+    "tokenizer_name": null,
+    "tokenizer_revision": null,
+    "dtype": "float16",
+    "quantization": "4bit",
+    "device_map": "auto",
+    "trust_remote_code": false,
+    "attn_implementation": "eager",
+    "max_memory": null
+  },
+
+  "datasets": {
+    "n_gsm8k": 150,
+    "n_truthfulqa": 150,
+    "n_winogrande": 150,
+    "n_synthetic": 150,
+    "gsm8k_split": "test",
+    "truthfulqa_split": "validation",
+    "winogrande_split": "validation",
+    "winogrande_subset": "winogrande_xl",
+    "synthetic_seed": 20260820,
+    "allow_hub_download": true,
+    "local_dataset_dir": null
+  },
+
+  "generation": {
+    "max_new_tokens": 96,
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "do_sample": false,
+    "seed": 1234,
+    "stochastic_temperatures": [0.7],
+    "n_stochastic_samples": 0,
+    "batch_size": 4
+  },
+
+  "extraction": {
+    "modes": ["B", "C"],
+    "explicit_positions": [],
+    "max_generated_positions": 48,
+    "hidden_dtype": "float16",
+    "metric_dtype": "float32",
+    "shard_size": 16,
+    "save_hidden_states": true,
+    "save_attention": true,
+    "save_full_attention_for_n_samples": 4,
+    "save_full_vocab_logits": false,
+    "logit_lens_top_k": 20,
+    "capture_residual_decomposition": true
+  },
+
+  "geometry": {
+    "max_samples_for_pairwise": 256,
+    "knn_k": 10,
+    "pca_max_components": 64,
+    "effective_rank_eps": 1e-12,
+    "local_cov_neighbours": 16,
+    "intrinsic_dim_enabled": true
+  },
+
+  "jspace": {
+    "enabled": true,
+    "n_probe_directions": 8,
+    "probe_seed": 7,
+    "epsilons": [0.001, 0.01, 0.1],
+    "max_samples": 64,
+    "relative_perturbation": true
+  },
+
+  "interventions": {
+    "enabled": true,
+    "max_samples": 48,
+    "layer_offsets": [-4, -2, -1, 0, 1, 2, 4],
+    "include_absolute_layers": [0.1, 0.5, 0.9],
+    "epsilons": [0.5, 1.0, 2.0],
+    "perturbation_kinds": [
+      "gaussian",
+      "orthogonal_to_answer_dir",
+      "along_answer_dir",
+      "pca_direction",
+      "cross_sample"
+    ],
+    "control_random_layers": 2,
+    "intervention_max_new_tokens": 48
+  },
+
+  "stats": {
+    "n_bootstrap": 2000,
+    "n_permutation": 2000,
+    "alpha": 0.05,
+    "multiple_comparison_method": "fdr_bh",
+    "bootstrap_seed": 99,
+    "min_group_size": 5
+  },
+
+  "runtime": {
+    "max_runtime_hours": 11.2,
+    "heartbeat_seconds": 120.0,
+    "reserve_minutes_for_finalisation": 25.0,
+    "min_free_disk_gb": 3.0,
+    "oom_retry_attempts": 2,
+    "max_sample_failures": 3
+  }
+}
