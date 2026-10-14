@@ -767,6 +767,17 @@ def test_interv_summary_empty_and_missing_columns():
     assert sensitivity_by_layer_role(pd.DataFrame({"layer_role": ["critical"]})) == {"status": "no_data"}
 
 
+def test_orthogonal_component_device_handling():
+    import torch
+    from nl2ms.hooks import orthogonal_component
+
+    v = torch.randn(16, dtype=torch.float32)
+    ref = torch.randn(16, dtype=torch.float32)
+    out = orthogonal_component(v, ref)
+    assert out.shape == v.shape
+    assert abs(float((out @ ref).item())) < 1e-5
+
+
 if __name__ == "__main__":
     import traceback
     tests = [(n, o) for n, o in sorted(globals().items())

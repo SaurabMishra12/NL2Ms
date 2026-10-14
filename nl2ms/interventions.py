@@ -138,20 +138,20 @@ def build_perturbation(kind: str, *, dim: int, device: Any, seed: int,
     if kind == "along_answer_dir":
         if answer_dir is None:
             return None, "answer direction unavailable"
-        return answer_dir, "unembedding row of the correct answer token"
+        return answer_dir.to(device), "unembedding row of the correct answer token"
     if kind == "orthogonal_to_answer_dir":
         if answer_dir is None:
             return None, "answer direction unavailable"
-        return orthogonal_component(rand, answer_dir), \
+        return orthogonal_component(rand, answer_dir.to(device)), \
             "random direction with the answer component removed"
     if kind == "pca_direction":
         if pca_dir is None:
             return None, "pca direction unavailable"
-        return pca_dir, "top principal direction of the layer population"
+        return pca_dir.to(device), "top principal direction of the layer population"
     if kind == "cross_sample":
         if cross_dir is None:
             return None, "cross-sample direction unavailable"
-        return cross_dir, "answer direction of a different sample"
+        return cross_dir.to(device), "answer direction of a different sample"
     return None, f"unknown perturbation kind {kind}"
 
 

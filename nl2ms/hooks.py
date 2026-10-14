@@ -150,7 +150,8 @@ def random_directions(n: int, dim: int, seed: int, *, device: Any = None,
 def orthogonal_component(v: Any, reference: Any) -> Any:
     """Remove the component of ``v`` along ``reference``, renormalising."""
     import torch
-    r = reference / reference.norm().clamp(min=1e-12)
+    r = reference.to(v.device)
+    r = r / r.norm().clamp(min=1e-12)
     proj = (v @ r) if v.dim() == 1 else (v @ r).unsqueeze(-1)
     out = v - proj * r
     norm = out.norm(dim=-1, keepdim=True).clamp(min=1e-12)
