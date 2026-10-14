@@ -133,7 +133,7 @@ cells.append(code(r"""
 #
 # On Kaggle, attach this repository as a dataset/utility script, or clone it
 # into the working directory. The loop below covers the usual locations.
-import sys
+import sys, subprocess
 from pathlib import Path
 
 CANDIDATES = [
@@ -149,10 +149,18 @@ for c in CANDIDATES:
         print(f"nl2ms found at: {c}")
         break
 else:
-    raise ImportError(
-        "Could not locate the nl2ms package. Clone the repository into "
-        "/kaggle/working, or attach it as a Kaggle dataset, then re-run."
-    )
+    target = Path("/kaggle/working/NL2Ms")
+    if not (target / "nl2ms" / "__init__.py").exists():
+        print("Cloning repository into /kaggle/working/NL2Ms...")
+        subprocess.run(["git", "clone", "-q", "https://github.com/SaurabMishra12/NL2Ms.git", str(target)], check=False)
+    if (target / "nl2ms" / "__init__.py").exists():
+        sys.path.insert(0, str(target))
+        print(f"nl2ms found at: {target}")
+    else:
+        raise ImportError(
+            "Could not locate the nl2ms package. Clone the repository into "
+            "/kaggle/working, or attach it as a Kaggle dataset, then re-run."
+        )
 
 import nl2ms
 print("nl2ms version:", nl2ms.__version__)
