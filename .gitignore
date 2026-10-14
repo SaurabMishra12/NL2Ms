@@ -11,3 +11,6 @@ experiment_*/
 *.tar.gz
 *.parquet
 *.npz
+kaggle_outputs/
+kernel-metadata.json
+

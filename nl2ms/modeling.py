@@ -606,7 +606,13 @@ def load_model(model_cfg: Any, *, max_memory: Optional[Dict[str, str]] = None,
     if model_cfg.device_map:
         load_kwargs["device_map"] = model_cfg.device_map
         if max_memory:
-            load_kwargs["max_memory"] = max_memory
+            cleaned_max_memory: Dict[Any, str] = {}
+            for k, v in max_memory.items():
+                if isinstance(k, str) and k.isdigit():
+                    cleaned_max_memory[int(k)] = v
+                else:
+                    cleaned_max_memory[k] = v
+            load_kwargs["max_memory"] = cleaned_max_memory
 
     start = time.time()
     model = AutoModelForCausalLM.from_pretrained(model_cfg.name, **load_kwargs)

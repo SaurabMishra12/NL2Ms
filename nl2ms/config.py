@@ -62,7 +62,7 @@ class ModelConfig:
     device_map: str = "auto"
     trust_remote_code: bool = False
     attn_implementation: str = "eager"  # eager required for attention outputs
-    max_memory: Optional[Dict[str, str]] = None  # e.g. {"0": "13GiB", "1": "13GiB"}
+    max_memory: Optional[Dict[Any, str]] = None  # e.g. {0: "13GiB", 1: "13GiB"}
 
     def resolved_tokenizer_name(self) -> str:
         return self.tokenizer_name or self.name

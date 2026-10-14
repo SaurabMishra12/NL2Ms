@@ -165,7 +165,7 @@ def print_gpu_report() -> None:
 
 
 def build_max_memory(hardware: HardwareInfo, headroom_gb: float = 1.6
-                     ) -> Optional[Dict[str, str]]:
+                     ) -> Optional[Dict[Any, str]]:
     """Per-device memory caps for ``device_map="auto"``.
 
     Leaving headroom matters on 15 GB T4s: activations, the KV cache and the
@@ -174,10 +174,10 @@ def build_max_memory(hardware: HardwareInfo, headroom_gb: float = 1.6
     """
     if not hardware.cuda_available or hardware.n_gpus == 0:
         return None
-    max_memory: Dict[str, str] = {}
+    max_memory: Dict[Any, str] = {}
     for gpu in hardware.gpus:
         budget = max(1.0, gpu.total_memory_gb - headroom_gb)
-        max_memory[str(gpu.index)] = f"{budget:.1f}GiB"
+        max_memory[gpu.index] = f"{budget:.1f}GiB"
     max_memory["cpu"] = "8GiB"
     return max_memory
 

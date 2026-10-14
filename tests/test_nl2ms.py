@@ -737,6 +737,21 @@ def test_final_report_never_asserts_the_hypothesis():
         assert phrase not in source, f"report generator may emit: {phrase!r}"
 
 
+def test_build_max_memory_device_keys_are_ints():
+    from nl2ms.env import build_max_memory, HardwareInfo, GPUInfo
+    mock_gpus = [
+        GPUInfo(index=0, name="Tesla T4", total_memory_gb=14.6, capability="7.5"),
+        GPUInfo(index=1, name="Tesla T4", total_memory_gb=14.6, capability="7.5"),
+    ]
+    hw = HardwareInfo(cuda_available=True, n_gpus=2, gpus=mock_gpus,
+                      cuda_version="12.8", cpu_count=4, total_ram_gb=31.3)
+    max_mem = build_max_memory(hw, headroom_gb=1.6)
+    assert max_mem is not None
+    assert 0 in max_mem and isinstance(list(max_mem.keys())[0], int)
+    assert 1 in max_mem
+    assert "cpu" in max_mem
+
+
 if __name__ == "__main__":
     import traceback
     tests = [(n, o) for n, o in sorted(globals().items())
