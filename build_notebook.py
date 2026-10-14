@@ -437,7 +437,7 @@ minutes, not after six hours of extraction.
 cells.append(code(r"""
 from nl2ms.run import run_pilot, validate_pilot
 
-pilot = run_pilot(EXPERIMENT_CONFIG)
+pilot = run_pilot(EXPERIMENT_CONFIG, model=model)
 pilot_validation = validate_pilot(pilot)
 
 assert pilot_validation["passed"], (
@@ -501,7 +501,7 @@ resume_cfg.output_root = str(Path(EXPERIMENT_CONFIG.output_root).parent /
 resume_cfg.pilot_n_samples = 8
 resume_cfg.generation.max_new_tokens = 24
 
-resume_result = resume_test(resume_cfg, n_first=3)
+resume_result = resume_test(resume_cfg, n_first=3, model=model)
 assert resume_result["passed"], "Resumability is broken; do not start a long run."
 """))
 
@@ -541,7 +541,7 @@ and re-running this cell in a new session continues from that point.
 cells.append(code(r"""
 from nl2ms.run import run_experiment
 
-result = run_experiment(EXPERIMENT_CONFIG)
+result = run_experiment(EXPERIMENT_CONFIG, model=model)
 
 if result.get("stopped") == "budget":
     print("\nThe run stopped to protect the finalisation window.")

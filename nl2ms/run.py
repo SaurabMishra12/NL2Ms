@@ -25,7 +25,8 @@ from .storage import make_backup_archive, save_json
 
 def run_experiment(config: ExperimentConfig, *, pilot: bool = False,
                    repo_dir: str = ".", make_backup: bool = True,
-                   strict_determinism: bool = False) -> Dict[str, Any]:
+                   strict_determinism: bool = False,
+                   model: Optional[Any] = None) -> Dict[str, Any]:
     """Run every phase, resuming anything already complete.
 
     Returns a dict with the experiment object, the results payload and the
@@ -34,6 +35,8 @@ def run_experiment(config: ExperimentConfig, *, pilot: bool = False,
     a wall-clock stop is a normal, non-exceptional outcome.
     """
     exp = Experiment(config, repo_dir=repo_dir)
+    if model is not None:
+        exp.model = model
     t_start = time.time()
 
     try:
@@ -163,7 +166,8 @@ def run_experiment(config: ExperimentConfig, *, pilot: bool = False,
         free_gpu_memory()
 
 
-def run_pilot(config: ExperimentConfig, **kwargs: Any) -> Dict[str, Any]:
+def run_pilot(config: ExperimentConfig, *, model: Optional[Any] = None,
+              **kwargs: Any) -> Dict[str, Any]:
     """Mandatory pilot pass (protocol section 54).
 
     Exercises every code path on a handful of samples so that a failure in,
@@ -176,7 +180,7 @@ def run_pilot(config: ExperimentConfig, **kwargs: Any) -> Dict[str, Any]:
     print("=" * 72)
     print("PILOT RUN -- validating every code path before the full experiment")
     print("=" * 72)
-    out = run_experiment(pcfg, pilot=True, **kwargs)
+    out = run_experiment(pcfg, pilot=True, model=model, **kwargs)
     print("=" * 72)
     ok = out.get("integrity", {}).get("passed", False)
     print(f"PILOT {'PASSED' if ok else 'COMPLETED WITH PROBLEMS'}")
@@ -245,7 +249,8 @@ def validate_pilot(pilot_result: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def resume_test(config: ExperimentConfig, *, n_first: int = 4,
-                repo_dir: str = ".") -> Dict[str, Any]:
+                repo_dir: str = ".",
+                model: Optional[Any] = None) -> Dict[str, Any]:
     """Demonstrate resumability for real (protocol section 55).
 
     Processes a few samples, tears the experiment object down, rebuilds it from
@@ -262,6 +267,8 @@ def resume_test(config: ExperimentConfig, *, n_first: int = 4,
 
     # --- pass 1: process n_first samples ------------------------------
     exp1 = Experiment(cfg, repo_dir=repo_dir)
+    if model is not None:
+        exp1.model = model
     exp1.phase0_environment()
     samples = exp1.phase1_dataset(pilot=True)
     subset = samples[:max(2, n_first * 2)]
@@ -332,4 +339,5 @@ def resume_test(config: ExperimentConfig, *, n_first: int = 4,
         print("RESUME TEST FAILED -- do not rely on resumability until fixed")
     print("=" * 72)
     result["experiment"] = exp2
+    free_gpu_memory()
     return result

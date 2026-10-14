@@ -173,6 +173,13 @@ class Experiment:
     # ==================================================================
     def load(self) -> ModelWrapper:
         if self.model is not None:
+            verif_path = self.paths.config / "model_verification.json"
+            if not verif_path.exists():
+                verification = self.model.verify_capture()
+                save_json(verif_path,
+                          {"architecture": self.model.arch.to_dict(),
+                           "load_info": self.model.load_info,
+                           "capture_verification": verification})
             return self.model
         self._log(f"loading model {self.config.model.name}")
         hardware = detect_hardware()
