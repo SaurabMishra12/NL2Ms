@@ -155,7 +155,7 @@ def run_logit_lens(wrapper: Any, residual_by_layer: Sequence[Any], *,
             tk.values.sum(dim=-1).cpu().numpy()
 
         if cand_tensor is not None:
-            cand_probs[l] = p.index_select(1, cand_tensor).double().cpu().numpy()
+            cand_probs[l] = p.index_select(1, cand_tensor.to(p.device)).double().cpu().numpy()
 
         if correct_token_id is not None and 0 <= correct_token_id < V:
             cp = p[:, correct_token_id]

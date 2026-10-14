@@ -354,16 +354,23 @@ def _clean_number(text: str) -> str:
     return text.replace(",", "").strip().rstrip(".")
 
 
+def _safe_load_dataset(name_with_ns: str, name_bare: str, *args: Any, **kwargs: Any) -> Any:
+    from datasets import load_dataset
+    try:
+        return load_dataset(name_with_ns, *args, **kwargs)
+    except Exception:
+        return load_dataset(name_bare, *args, **kwargs)
+
+
 def load_gsm8k(n: int, split: str = "test",
                prompt_template: str = "plain_qa_v1") -> List[Sample]:
-    """GSM8K -- open-vocabulary numeric answers.
+    """GSM8K -- grade-school math with numeric answer extraction.
 
     There is no enumerated distractor set, so the order parameter uses the
     open-vocabulary definition. Recorded explicitly rather than fabricating
     multiple-choice options that the model never saw.
     """
-    from datasets import load_dataset
-    ds = load_dataset("gsm8k", "main", split=split)
+    ds = _safe_load_dataset("openai/gsm8k", "gsm8k", "main", split=split)
     samples: List[Sample] = []
     for i in range(min(n, len(ds))):
         row = ds[i]
@@ -389,8 +396,7 @@ def load_gsm8k(n: int, split: str = "test",
 def load_truthfulqa(n: int, split: str = "validation",
                     prompt_template: str = "plain_qa_v1") -> List[Sample]:
     """TruthfulQA (mc1) -- closed candidate set, one correct answer."""
-    from datasets import load_dataset
-    ds = load_dataset("truthful_qa", "multiple_choice", split=split)
+    ds = _safe_load_dataset("truthfulqa/truthful_qa", "truthful_qa", "multiple_choice", split=split)
     samples: List[Sample] = []
     rng = random.Random(4242)
     for i in range(min(n, len(ds))):
@@ -426,8 +432,7 @@ def load_winogrande(n: int, split: str = "validation",
                     subset: str = "winogrande_xl",
                     prompt_template: str = "plain_qa_v1") -> List[Sample]:
     """Winogrande -- binary closed candidate set (pronoun resolution)."""
-    from datasets import load_dataset
-    ds = load_dataset("winogrande", subset, split=split, trust_remote_code=True)
+    ds = _safe_load_dataset("allenai/winogrande", "winogrande", subset, split=split, trust_remote_code=True)
     samples: List[Sample] = []
     for i in range(min(n, len(ds))):
         row = ds[i]

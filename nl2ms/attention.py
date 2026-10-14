@@ -191,22 +191,23 @@ def attention_restructuring(attentions: Sequence[Any], *,
             frob[l] = np.nan
             cosim[l] = np.nan
             continue
-        diff = (cur - prev).flatten(start_dim=1)          # (heads, n_pos*T)
+        cur_dev = cur.to(prev.device)
+        diff = (cur_dev - prev).flatten(start_dim=1)          # (heads, n_pos*T)
         frob[l] = float(torch.linalg.vector_norm(diff).item())
         per_head[l] = torch.linalg.vector_norm(diff, dim=1).cpu().numpy()
 
         a = prev.flatten(start_dim=1)
-        b = cur.flatten(start_dim=1)
+        b = cur_dev.flatten(start_dim=1)
         head_cos = torch.nn.functional.cosine_similarity(a, b, dim=1)
         per_head_cos[l] = head_cos.cpu().numpy()
         cosim[l] = float(head_cos.mean().item())
 
         # JSD between the attention rows treated as distributions -- bounded,
         # so a near-disjoint pattern change does not blow up.
-        m = 0.5 * (prev + cur)
+        m = 0.5 * (prev + cur_dev)
         kl_pm = (prev * (torch.log(prev.clamp(min=EPS)) -
                          torch.log(m.clamp(min=EPS)))).sum(dim=-1)
-        kl_qm = (cur * (torch.log(cur.clamp(min=EPS)) -
+        kl_qm = (cur_dev * (torch.log(cur_dev.clamp(min=EPS)) -
                         torch.log(m.clamp(min=EPS)))).sum(dim=-1)
         jsd[l] = float((0.5 * kl_pm + 0.5 * kl_qm).mean().item())
 

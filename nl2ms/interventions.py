@@ -456,7 +456,8 @@ def sensitivity_by_layer_role(df: Any, metric: str = "jsd_output"
     """
     import pandas as pd
 
-    if df is None or len(df) == 0:
+    required = {"layer_role", "perturbation_kind", "epsilon", metric}
+    if df is None or len(df) == 0 or not required.issubset(getattr(df, "columns", [])):
         return {"status": "no_data"}
     out: Dict[str, Any] = {"status": "ok", "metric": metric}
     grouped = df.groupby(["layer_role", "perturbation_kind", "epsilon"])[metric]

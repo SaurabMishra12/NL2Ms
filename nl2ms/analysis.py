@@ -66,19 +66,21 @@ def build_sample_summary(exp: Any, analyses: Dict[str, Dict[str, Any]],
     rows: List[Dict[str, Any]] = []
 
     causal_by_sample: Dict[str, Dict[str, float]] = {}
-    if intervention_df is not None and len(intervention_df):
+    if intervention_df is not None and len(intervention_df) and "sample_id" in getattr(intervention_df, "columns", []):
         for sid, sub in intervention_df.groupby("sample_id"):
-            crit_rows = sub[sub["layer_role"] == "critical"]
-            ctrl_rows = sub[sub["layer_role"] == "random_control"]
+            has_role = "layer_role" in sub.columns
+            has_jsd = "jsd_output" in sub.columns
+            crit_rows = sub[sub["layer_role"] == "critical"] if has_role else sub.iloc[0:0]
+            ctrl_rows = sub[sub["layer_role"] == "random_control"] if has_role else sub.iloc[0:0]
             causal_by_sample[sid] = {
                 "causal_sensitivity_critical": (float(crit_rows["jsd_output"].mean())
-                                                if len(crit_rows) else np.nan),
+                                                if len(crit_rows) and has_jsd else np.nan),
                 "causal_sensitivity_random": (float(ctrl_rows["jsd_output"].mean())
-                                              if len(ctrl_rows) else np.nan),
+                                              if len(ctrl_rows) and has_jsd else np.nan),
                 "causal_answer_change_rate": (float(sub["answer_changed"].mean())
-                                              if sub["answer_changed"].notna().any()
+                                              if "answer_changed" in sub.columns and sub["answer_changed"].notna().any()
                                               else np.nan),
-                "causal_max_jsd": float(sub["jsd_output"].max()),
+                "causal_max_jsd": (float(sub["jsd_output"].max()) if has_jsd and len(sub) else np.nan),
             }
 
     for sid, data in analyses.items():
@@ -759,7 +761,8 @@ def finalise(exp: Any, *, analyses: Dict[str, Dict[str, Any]],
         summary = interv_summary(idf)
         causal.update(summary)
         causal["n_outcomes"] = int(len(idf))
-        causal["n_samples"] = int(idf["sample_id"].nunique()) if len(idf) else 0
+        causal["n_samples"] = (int(idf["sample_id"].nunique())
+                              if len(idf) and "sample_id" in getattr(idf, "columns", []) else 0)
         vers = intervention.get("verifications") or []
         ok_vers = [v for v in vers if v.get("status") == "ok"]
         if ok_vers:
@@ -833,6 +836,11 @@ def finalise(exp: Any, *, analyses: Dict[str, Dict[str, Any]],
 
 def interv_summary(idf: Any) -> Dict[str, Any]:
     from . import interventions as interv_mod
+    if idf is None or len(idf) == 0:
+        return {"status": "no_data"}
+    cols = getattr(idf, "columns", [])
+    if "layer_role" not in cols or "jsd_output" not in cols:
+        return {"status": "no_data"}
     out = interv_mod.sensitivity_by_layer_role(idf)
     keep = ["critical_mean", "random_control_mean",
             "cohens_d_critical_vs_random", "n_critical", "n_random_control",

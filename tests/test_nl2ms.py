@@ -752,6 +752,21 @@ def test_build_max_memory_device_keys_are_ints():
     assert "cpu" in max_mem
 
 
+def test_interv_summary_empty_and_missing_columns():
+    import pandas as pd
+    from nl2ms.analysis import interv_summary
+    from nl2ms.interventions import sensitivity_by_layer_role
+
+    assert interv_summary(None) == {"status": "no_data"}
+    assert interv_summary(pd.DataFrame()) == {"status": "no_data"}
+    assert interv_summary(pd.DataFrame({"foo": [1, 2]})) == {"status": "no_data"}
+    assert interv_summary(pd.DataFrame({"layer_role": ["critical"]})) == {"status": "no_data"}
+
+    assert sensitivity_by_layer_role(None) == {"status": "no_data"}
+    assert sensitivity_by_layer_role(pd.DataFrame()) == {"status": "no_data"}
+    assert sensitivity_by_layer_role(pd.DataFrame({"layer_role": ["critical"]})) == {"status": "no_data"}
+
+
 if __name__ == "__main__":
     import traceback
     tests = [(n, o) for n, o in sorted(globals().items())

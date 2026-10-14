@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Monitor Kaggle kernel execution and automatically download outputs upon completion."""
+"""Resilient monitor for Kaggle kernel execution and automated output downloader."""
 
-import json
 import os
 import subprocess
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 KERNEL_SLUG = "saurabmmshra/nl2ms-phase-transitions"
 OUTPUT_DIR = Path("/home/saurab/Documents/NL2Ms/NL2Ms/kaggle_outputs")
-POLL_INTERVAL_SECONDS = 45
+POLL_INTERVAL_SECONDS = 60
 MAX_MONITOR_HOURS = 12.5
 
 
@@ -20,22 +20,23 @@ def log(msg: str) -> None:
     print(f"[{now}] {msg}", flush=True)
 
 
-def get_kernel_status() -> str:
-    try:
-        res = subprocess.run(
-            ["kaggle", "kernels", "status", KERNEL_SLUG],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        output = res.stdout.strip()
-        # Parse status: e.g. 'saurabmmshra/nl2ms-phase-transitions has status "KernelWorkerStatus.RUNNING"'
-        if 'status "' in output:
-            status = output.split('status "')[1].rstrip('"')
-            return status
-        return output
-    except Exception as exc:
-        return f"ERROR_FETCHING_STATUS: {exc}"
+def get_kernel_status() -> Optional[str]:
+    for _ in range(3):
+        try:
+            res = subprocess.run(
+                ["kaggle", "kernels", "status", KERNEL_SLUG],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            output = res.stdout.strip()
+            if 'status "' in output:
+                return output.split('status "')[1].rstrip('"')
+            if output.startswith("saurabmmshra/"):
+                return output
+        except Exception:
+            time.sleep(3)
+    return None
 
 
 def get_latest_logs(last_line_count: int = 15) -> str:
@@ -44,31 +45,34 @@ def get_latest_logs(last_line_count: int = 15) -> str:
             ["kaggle", "kernels", "logs", KERNEL_SLUG],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=45,
         )
         lines = res.stdout.strip().splitlines()
         if not lines:
             return ""
         return "\n".join(lines[-last_line_count:])
     except Exception as exc:
-        return f"(Could not fetch logs: {exc})"
+        return f"(Log fetch delayed: {exc})"
 
 
 def download_outputs() -> bool:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    log(f"Downloading outputs to {OUTPUT_DIR}...")
+    log(f"Downloading outputs from Kaggle to {OUTPUT_DIR}...")
     try:
         res = subprocess.run(
             ["kaggle", "kernels", "output", KERNEL_SLUG, "-p", str(OUTPUT_DIR), "--force"],
             capture_output=True,
             text=True,
-            timeout=600,
+            timeout=900,
         )
         log(f"Download output:\n{res.stdout}\n{res.stderr}")
-        log("Downloaded files:")
+        log("Downloaded files summary:")
+        total_files = 0
         for p in OUTPUT_DIR.rglob("*"):
             if p.is_file():
+                total_files += 1
                 log(f"  - {p.relative_to(OUTPUT_DIR)} ({p.stat().st_size / (1024 * 1024):.2f} MB)")
+        log(f"Total downloaded files: {total_files}")
         return res.returncode == 0
     except Exception as exc:
         log(f"Failed to download outputs: {exc}")
@@ -76,7 +80,7 @@ def download_outputs() -> bool:
 
 
 def main() -> int:
-    log(f"Starting monitor for Kaggle kernel: {KERNEL_SLUG}")
+    log(f"Starting resilient monitor for Kaggle kernel: {KERNEL_SLUG}")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     start_time = time.time()
     last_status = None
@@ -91,6 +95,11 @@ def main() -> int:
             break
 
         status = get_kernel_status()
+        if status is None:
+            log("Note: Kaggle API status request timed out, will retry next poll interval.")
+            time.sleep(POLL_INTERVAL_SECONDS)
+            continue
+
         if status != last_status:
             log(f"Status changed -> {status} (Elapsed: {elapsed_hr:.2f}h)")
             last_status = status
@@ -100,19 +109,24 @@ def main() -> int:
             log(f"--- Latest Logs snippet ---\n{logs}\n---------------------------")
             prev_log_snippet = logs
 
-        # Check terminal status
-        if "COMPLETE" in status.upper():
-            log("Kernel run completed successfully!")
+        # Check genuine Kaggle terminal statuses
+        if "KernelWorkerStatus.COMPLETE" in status or status == "COMPLETE":
+            log("Kernel run completed successfully on Kaggle!")
             break
-        elif any(term in status.upper() for term in ["ERROR", "CANCEL", "FAILED", "KILLED"]):
-            log(f"Kernel terminated with status: {status}")
+        elif any(term in status for term in [
+            "KernelWorkerStatus.ERROR",
+            "KernelWorkerStatus.CANCEL",
+            "KernelWorkerStatus.FAILED",
+            "KernelWorkerStatus.KILLED",
+        ]):
+            log(f"Kernel reached terminal status: {status}")
             break
 
         time.sleep(POLL_INTERVAL_SECONDS)
 
-    log("Run terminated or completed. Initiating final output fetch...")
+    log("Kernel run finished. Downloading outputs now...")
     download_outputs()
-    log("Monitor task finished.")
+    log("Monitor task finished successfully.")
     return 0
 
 
