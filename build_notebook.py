@@ -150,7 +150,10 @@ for c in CANDIDATES:
         break
 else:
     target = Path("/kaggle/working/NL2Ms")
-    if not (target / "nl2ms" / "__init__.py").exists():
+    if (target / ".git").exists():
+        print("Pulling latest repository into /kaggle/working/NL2Ms...")
+        subprocess.run(["git", "-C", str(target), "pull", "-q"], check=False)
+    elif not (target / "nl2ms" / "__init__.py").exists():
         print("Cloning repository into /kaggle/working/NL2Ms...")
         subprocess.run(["git", "clone", "-q", "https://github.com/SaurabMishra12/NL2Ms.git", str(target)], check=False)
     if (target / "nl2ms" / "__init__.py").exists():

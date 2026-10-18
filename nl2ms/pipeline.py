@@ -485,6 +485,8 @@ class Experiment:
                 expected_shape = vec.shape
             elif vec.shape != expected_shape:
                 continue
+            if not np.all(np.isfinite(vec)):
+                vec = np.nan_to_num(vec, nan=0.0, posinf=65504.0, neginf=-65504.0)
             rows.append(vec)
             kept.append(sid)
         if not rows:

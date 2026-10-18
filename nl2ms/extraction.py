@@ -367,8 +367,9 @@ def analyse_sample(wrapper: Any, sample: Sample, generation: GenerationResult,
             T = residual[l].shape[1]
             idx = torch.tensor([plan.positions[i] % T for i in keep_idx],
                                device=residual[l].device, dtype=torch.long)
-            pieces.append(residual[l].index_select(1, idx)[0]
-                          .to(torch.float16).cpu().numpy())
+            t = residual[l].index_select(1, idx)[0]
+            t = torch.nan_to_num(t, nan=0.0, posinf=65504.0, neginf=-65504.0)
+            pieces.append(t.to(torch.float16).cpu().numpy())
         hidden_array = np.stack(pieces, axis=0)   # (n_depth, n_keep, d)
 
     per_position: Dict[str, np.ndarray] = {

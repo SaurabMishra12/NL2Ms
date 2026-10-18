@@ -233,6 +233,42 @@ def test_class_separation_ignores_ungraded():
     assert out["separation_ratio"] > 1.5
 
 
+def test_geometry_robust_to_nan_and_inf():
+    rng = np.random.default_rng(42)
+    X = rng.normal(size=(50, 8))
+    # Inject nan, +inf, -inf
+    X[0, 0] = np.nan
+    X[1, 2] = np.inf
+    X[2, 4] = -np.inf
+
+    # None of these should raise ValueError: data must be finite
+    res_twonn = G.two_nn_intrinsic_dimension(X)
+    assert "intrinsic_dimension" in res_twonn
+
+    res_layer = G.layer_geometry(X)
+    assert res_layer["n_samples"] == 50
+
+    res_local = G.local_geometry(X, k=5)
+    assert res_local["n_samples"] == 50
+
+    res_stab = G.neighbourhood_stability(X, X, k=5)
+    assert "knn_jaccard" in res_stab
+
+    labels = np.array([True] * 25 + [False] * 25)
+    res_sep = G.class_separation(X, labels)
+    assert res_sep["n_classes"] == 2
+
+    # 3D tensor across layers
+    H = rng.normal(size=(30, 4, 8))
+    H[0, 1, 0] = np.nan
+    H[2, 3, 5] = np.inf
+    res_across = G.geometry_across_layers(H, labels=np.array([True] * 15 + [False] * 15))
+    assert res_across["n_samples_used"] == 30
+
+    res_pca = G.pca_trajectory(H, n_components=3)
+    assert res_pca["status"] == "ok"
+
+
 # ===========================================================================
 # Statistics
 # ===========================================================================

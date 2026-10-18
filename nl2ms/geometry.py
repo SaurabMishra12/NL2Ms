@@ -35,10 +35,12 @@ def singular_spectrum(X: np.ndarray, center: bool = True,
     if X.ndim != 2 or X.shape[0] < 2:
         return {"singular_values": np.array([]), "explained_variance_ratio": np.array([]),
                 "n_samples": int(X.shape[0]) if X.ndim == 2 else 0}
+    if not np.all(np.isfinite(X)):
+        X = np.nan_to_num(X, nan=0.0, posinf=1e6, neginf=-1e6)
     Xc = X - X.mean(axis=0, keepdims=True) if center else X
     try:
         s = np.linalg.svd(Xc, compute_uv=False)
-    except np.linalg.LinAlgError:
+    except (np.linalg.LinAlgError, ValueError):
         return {"singular_values": np.array([]), "explained_variance_ratio": np.array([]),
                 "n_samples": int(X.shape[0]), "error": "svd_did_not_converge"}
     var = s ** 2
@@ -63,21 +65,24 @@ def effective_rank(singular_values: np.ndarray, eps: float = 1e-12) -> float:
     equal to n for a flat spectrum and 1 for a rank-1 cloud.
     """
     s = np.asarray(singular_values, dtype=np.float64)
-    s = s[s > eps]
-    if s.size == 0:
+    s = s[np.isfinite(s) & (s > eps)]
+    if s.size == 0 or np.sum(s) <= 0:
         return 0.0
     p = s / np.sum(s)
-    entropy = -np.sum(p * np.log(p))
+    entropy = -np.sum(p * np.log(np.maximum(p, EPS)))
     return float(np.exp(entropy))
 
 
 def participation_ratio(singular_values: np.ndarray) -> float:
     """PR = (sum s^2)^2 / sum s^4, on eigenvalues of the covariance."""
     lam = np.asarray(singular_values, dtype=np.float64) ** 2
-    lam = lam[lam > EPS]
+    lam = lam[np.isfinite(lam) & (lam > EPS)]
     if lam.size == 0:
         return 0.0
-    return float((np.sum(lam) ** 2) / np.sum(lam ** 2))
+    denom = float(np.sum(lam ** 2))
+    if denom <= EPS:
+        return 0.0
+    return float((np.sum(lam) ** 2) / denom)
 
 
 def variance_explained_at(ratio: np.ndarray, k: int) -> float:
@@ -114,9 +119,15 @@ def two_nn_intrinsic_dimension(X: np.ndarray, discard_fraction: float = 0.1
     if n < 10:
         return {"intrinsic_dimension": float("nan"), "n_samples": n,
                 "status": "too_few_samples"}
+    if not np.all(np.isfinite(X)):
+        X = np.nan_to_num(X, nan=0.0, posinf=1e6, neginf=-1e6)
     from scipy.spatial import cKDTree
-    tree = cKDTree(X)
-    dists, _ = tree.query(X, k=3)  # self + 2 neighbours
+    try:
+        tree = cKDTree(X)
+        dists, _ = tree.query(X, k=3)  # self + 2 neighbours
+    except Exception as exc:
+        return {"intrinsic_dimension": float("nan"), "n_samples": n,
+                "status": f"tree_failed: {exc}"}
     r1, r2 = dists[:, 1], dists[:, 2]
     valid = (r1 > EPS) & (r2 > r1)
     if valid.sum() < 10:
@@ -155,6 +166,8 @@ def layer_geometry(X: np.ndarray, labels: Optional[np.ndarray] = None, *,
     if X.ndim != 2 or X.shape[0] < 2:
         out["status"] = "insufficient_samples"
         return out
+    if not np.all(np.isfinite(X)):
+        X = np.nan_to_num(X, nan=0.0, posinf=1e6, neginf=-1e6)
 
     norms = np.linalg.norm(X, axis=1)
     out["norm_mean"] = float(np.mean(norms))
@@ -214,6 +227,8 @@ def class_separation(X: np.ndarray, labels: np.ndarray,
     layers.
     """
     X = np.asarray(X, dtype=np.float64)
+    if not np.all(np.isfinite(X)):
+        X = np.nan_to_num(X, nan=0.0, posinf=1e6, neginf=-1e6)
     labels, valid = _clean_labels(labels)
     classes = sorted(np.unique(labels[valid]).tolist()) if valid.any() else []
     out: Dict[str, Any] = {"n_classes": len(classes),
@@ -321,11 +336,17 @@ def local_geometry(X: np.ndarray, labels: Optional[np.ndarray] = None, *,
     if n < k + 2:
         out["status"] = "too_few_samples"
         return out
+    if not np.all(np.isfinite(X)):
+        X = np.nan_to_num(X, nan=0.0, posinf=1e6, neginf=-1e6)
 
     from scipy.spatial import cKDTree
-    tree = cKDTree(X)
-    kq = min(k + 1, n)
-    dists, idxs = tree.query(X, k=kq)
+    try:
+        tree = cKDTree(X)
+        kq = min(k + 1, n)
+        dists, idxs = tree.query(X, k=kq)
+    except Exception as exc:
+        out["status"] = f"tree_failed: {exc}"
+        return out
     nn_dists = dists[:, 1:]           # drop self
     nn_idx = idxs[:, 1:]
 
@@ -397,9 +418,16 @@ def neighbourhood_stability(X_prev: np.ndarray, X_next: np.ndarray,
     n = Xp.shape[0]
     if n < k + 2 or Xn.shape[0] != n:
         return {"knn_jaccard": float("nan"), "knn_overlap": float("nan"), "n": n}
+    if not np.all(np.isfinite(Xp)):
+        Xp = np.nan_to_num(Xp, nan=0.0, posinf=1e6, neginf=-1e6)
+    if not np.all(np.isfinite(Xn)):
+        Xn = np.nan_to_num(Xn, nan=0.0, posinf=1e6, neginf=-1e6)
     kq = min(k + 1, n)
-    _, ip = cKDTree(Xp).query(Xp, k=kq)
-    _, inn = cKDTree(Xn).query(Xn, k=kq)
+    try:
+        _, ip = cKDTree(Xp).query(Xp, k=kq)
+        _, inn = cKDTree(Xn).query(Xn, k=kq)
+    except Exception:
+        return {"knn_jaccard": float("nan"), "knn_overlap": float("nan"), "n": n}
     overlaps, jaccards = [], []
     for i in range(n):
         a, b = set(ip[i, 1:].tolist()), set(inn[i, 1:].tolist())
@@ -425,6 +453,8 @@ def geometry_across_layers(H: np.ndarray, labels: Optional[np.ndarray] = None, *
     H = np.asarray(H, dtype=np.float64)
     if H.ndim != 3:
         raise ValueError(f"expected (n_samples, n_layers, hidden), got {H.shape}")
+    if not np.all(np.isfinite(H)):
+        H = np.nan_to_num(H, nan=0.0, posinf=1e6, neginf=-1e6)
     n_samples, n_layers, _ = H.shape
 
     max_pairwise = getattr(cfg, "max_samples_for_pairwise", 256) if cfg else 256
@@ -502,13 +532,15 @@ def pca_trajectory(H: np.ndarray, n_components: int = 3,
     artefact of independently rotating bases rather than a real path.
     """
     H = np.asarray(H, dtype=np.float64)
+    if not np.all(np.isfinite(H)):
+        H = np.nan_to_num(H, nan=0.0, posinf=1e6, neginf=-1e6)
     n_samples, n_layers, d = H.shape
     flat = H.reshape(-1, d)
     fit_data = flat if fit_layers is None else H[:, list(fit_layers), :].reshape(-1, d)
     mean = fit_data.mean(axis=0, keepdims=True)
     try:
         _, s, vt = np.linalg.svd(fit_data - mean, full_matrices=False)
-    except np.linalg.LinAlgError:
+    except (np.linalg.LinAlgError, ValueError):
         return {"status": "svd_failed"}
     k = min(n_components, vt.shape[0])
     basis = vt[:k]

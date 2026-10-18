@@ -114,10 +114,12 @@ def pca_direction(hidden_bank: Optional[np.ndarray], layer: int,
     X = np.asarray(hidden_bank[:, layer, :], dtype=np.float64)
     if X.shape[0] < 3:
         return None
+    if not np.all(np.isfinite(X)):
+        X = np.nan_to_num(X, nan=0.0, posinf=1e6, neginf=-1e6)
     Xc = X - X.mean(axis=0, keepdims=True)
     try:
         _, _, vt = np.linalg.svd(Xc, full_matrices=False)
-    except np.linalg.LinAlgError:
+    except (np.linalg.LinAlgError, ValueError):
         return None
     if component >= vt.shape[0]:
         return None
