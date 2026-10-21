@@ -1,0 +1,9 @@
+{
+  "strict_json_records": 2910,
+  "files_verified": 1247,
+  "unique_content_hashes_verified": 1212,
+  "csv_rows": 14564079,
+  "csv_columns": 12,
+  "status": "PASS",
+  "note": "Byte integrity and serialization verified; scientific validity limitations remain in ANALYSIS.md."
+}
