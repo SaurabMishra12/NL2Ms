@@ -16,6 +16,7 @@ kernel-metadata.json
 
 # Large analysis bundles (>100MB) and temporary logs
 *.gz
+*.part*
 *.log
 analysis_*/all_results_and_raw_outputs.json
 analysis_*/combined_results.csv
